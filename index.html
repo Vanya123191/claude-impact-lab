@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gap Finder: one affordable home, one honest bill</title>
+<style>
+:root{--ink:#16262c;--paper:#f0f3ee;--panel:#fff;--line:#d3d9d1;--teal:#126b70;--gold:#b98b1f;--red:#b13e2b;--mute:#5a686d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 system-ui,sans-serif}
+header,main{max-width:1120px;margin:auto;padding:0 22px}
+header{padding-top:26px}
+h1{font:700 34px/1.1 Georgia,serif;margin:0 0 6px}
+header p{margin:0 0 6px;color:var(--mute);max-width:70ch}
+main{display:grid;grid-template-columns:330px 1fr;gap:18px;margin-top:14px;margin-bottom:40px}
+@media(max-width:820px){main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;margin-bottom:16px}
+fieldset{border:0;border-top:1px solid var(--line);margin:0 0 6px;padding:8px 0 0}
+legend{font-weight:700;padding-right:8px}
+label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:5px 0;font-size:13.5px}
+input,select{width:132px;padding:5px 6px;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:13.5px;text-align:right}
+select{width:170px;text-align:left}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+h2{font:700 20px Georgia,serif;margin:0 0 4px}
+.big{font:700 46px/1 Georgia,serif;color:var(--red)}.big.ok{color:var(--teal)}
+.sub,.note{color:var(--mute);font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin-top:8px}
+td,th{border-bottom:1px solid var(--line);padding:5px 6px;text-align:right}
+th:first-child,td:first-child{text-align:left}
+tr.gap td{font-weight:700;color:var(--red)}tr.base td{background:#e7f1ef}
+.warn{padding:8px 10px;border-radius:4px;font-size:13px;margin:6px 0}
+.w-ok{background:#e4f0e6}.w-stale{background:#f6dcd6}.w-home{background:#f7ecd0}
+.chip{font-size:12px;color:var(--mute)}
+.src{display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center;border-bottom:1px solid var(--line);padding:6px 0}
+.src input{width:110px}
+.bar{display:flex;height:30px;border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:10px 0}
+button{background:var(--ink);color:#fff;border:0;border-radius:4px;padding:9px 14px;font:inherit;cursor:pointer}
+pre{white-space:pre-wrap;font:14px/1.55 system-ui,sans-serif;background:#f6f8f5;border:1px solid var(--line);border-radius:4px;padding:10px;margin:10px 0 0;min-height:44px}button:disabled{opacity:.45;cursor:not-allowed}button+button{margin-left:8px}</style></head>
+<body>
+<header>
+<h1>Gap Finder</h1>
+<p>For a nonprofit finance lead or a donor. The family’s price is capped by income, so the gap is what is left. This tool derives that price from the state formula, shows which income table it used, and shows what a rate change or a gift does to one home’s bill.</p>
+<p class="note">Lane 3 (Fund it). Default deal is the synthetic one-home example from the lab repo, not a real project. Every number is labeled sourced or assumed.</p>
+</header>
+<main>
+<section class="panel" id="inputs"></section>
+<section>
+<div class="panel">
+<div class="big" id="gap"></div><div class="sub" id="gapsub"></div>
+<div class="bar" id="bar" role="img" aria-label="Who pays for the home"></div>
+<table id="bill"></table>
+<div id="tbl"></div>
+</div>
+<div class="panel"><h2>If the rate moves</h2>
+<p class="note">Price is capped by income, so a higher rate lowers the price the family can carry and raises the gap by the same dollars.</p>
+<svg id="chart" viewBox="0 0 560 190" width="100%" role="img" aria-label="Gap per home at each mortgage rate"></svg><table id="rates"></table></div>
+<div class="panel"><h2>What a gift does</h2>
+<label>Gift amount ($)<input id="gift" type="number" value="25000"></label>
+<p id="giftout"></p></div>
+<div class="panel"><h2>Sources still to stack</h2>
+<p class="note">Amounts start at $0 on purpose: nothing here is a confirmed award. Enter only what you have confirmed or want to test. Anything above $0 is flagged until the funds are confirmed.</p>
+<div id="srcs"></div></div>
+<div class="panel"><h2>Ask Claude</h2><p class="note" id="aiNote"></p><button id="aiMemo">Write funder memo</button><button id="aiDonor">Write donor note</button><pre id="aiOut"></pre></div>
+<div class="panel"><h2>Sources and assumptions</h2>
+<p class="note"><b>Sourced:</b> price cap formula from California Health and Safety Code 50052.5 (very low: 30% x 50% of area median income; lower: 30% x 70%; moderate: 35% x 110%, and not under 28% of gross income). Household size factors 0.7 / 0.8 / 0.9 / 1.0 / 1.08 for 1 to 5 persons, with a 3-bedroom treated as 4 persons. Mortgage rate 7.18% is Freddie Mac 30-year, 2026-11-05, and 7.40% on 2026-10-08 (FRED MORTGAGE30US, as listed in the lab data sources). Income table dates are from HCD’s 2026 State Income Limits memo (revised June 23, 2026) and the separate State HOME table (effective June 1, 2026). Program statuses are from the lab data-sources file, checked November 6, 2026.<br><b>Derived, confirm:</b> the 4-person area median income of $138,600 is the Irvine Company’s published 2026 Orange County 120% limit of $166,300 divided by 1.2. It was not read from the HCD PDF. <br><b>Assumed:</b> down payment 5%, property tax 1.1%, insurance $2,400 a year, HOA $200 a month, 30-year term, no mortgage insurance, and every cost and subsidy line (synthetic example). Public subsidies and rent earned are placeholders from the example, not real programs.</p></div>
+<button id="export">Download scenario (JSON) for the Claude memo</button>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id),P={};
+const TABLES=[["HCD State Income Limits, revised 2026-06-23","ok","Latest State table listed in the lab data. Confirm the Orange County figure against it."],["HCD State Income Limits, May 29 2026 version","stale","This version was replaced on June 23, 2026. Do not use it."],["State HOME limits, effective 2026-06-01","home","Separate table for HOME-funded buyers. The ownership price cap here still follows Health and Safety Code 50052.5. Confirm which limit your funder applies."]];
+const F=[["Project",[["n","Homes in project",1]]],["Buyer and price cap",[["cat","Income category",.385,[["Moderate: 35% x 110% AMI",.385],["Lower: 30% x 70% AMI",.21],["Very low: 30% x 50% AMI",.15]]],["size","Home size",1,[["2 bedroom (3 persons)",.9],["3 bedroom (4 persons)",1],["4 bedroom (5 persons)",1.08]]],["ami","4-person area median income ($)",138600],["tab","Income table used",0,TABLES.map((t,i)=>[t[0],i])]]],
+["Mortgage",[["rate","30-year rate (%)",7.18],["down","Down payment (%)",5],["tax","Property tax (% of price)",1.1],["ins","Insurance ($/yr)",2400],["hoa","HOA ($/mo)",200],["term","Term (years)",30]]],
+["Cost to create one home ($)",[["land","Land and building",360000],["time","Time costs while waiting",85000],["con","Construction and repairs",40000],["fees","Fees, design, legal, sales",50000]]],
+["Already lined up ($)",[["subs","Public subsidies",100000],["rent","Rent earned while waiting",55000]]]];
+F.forEach(([t,rows])=>{const fs=document.createElement("fieldset");fs.innerHTML="<legend>"+t+"</legend>";
+rows.forEach(([id,lab,v,o])=>{P[id]=v;const l=document.createElement("label");l.append(lab);let e;
+if(o){e=document.createElement("select");o.forEach(([n,x])=>{const op=document.createElement("option");op.value=x;op.textContent=n;if(x==v)op.selected=true;e.append(op)})}
+else{e=document.createElement("input");e.type="number";e.step="any";e.value=v}
+e.onchange=e.oninput=()=>{P[id]=parseFloat(e.value)||0;draw()};l.append(e);fs.append(l)});$("inputs").append(fs)});
+const SR=[["CalHome (HCD)","Program page verified. Award size and round dates unconfirmed."],["Homeownership Super NOFA (HCD)","NOFA page verified. Terms not read."],["HOME or CDBG through the city","Program pages verified. Local award unconfirmed."],["FHLBank SF Affordable Housing Program","Competitive grants. Page verified. Amounts not read."],["FHLBank SF WISH (buyer down payment)","Buyer-side help through a member bank. Page verified."],["CalHFA MyHome (junior loan)","Page says up to 3.5% (FHA) or 3% (conventional). Buyer-side."],["CalHFA Dream For All","UNCONFIRMED: funds not confirmed, reported out of money in 2023."],["Santa Ana My First Home","Page loads. Loan terms were not read from the page."],["Employer, donor or other pledges","Your own commitments."]];
+const S=SR.map(()=>0);
+SR.forEach(([n,s],i)=>{const d=document.createElement("div");d.className="src";d.innerHTML=`<div>${n}<div class="chip" id="c${i}">${s}</div></div><input type="number" value="0" aria-label="${n}">`;d.querySelector("input").oninput=e=>{S[i]=parseFloat(e.target.value)||0;draw()};$("srcs").append(d)});
+const k=(r,n)=>{r/=1200;n*=12;return r?r/(1-Math.pow(1+r,-n)):1/n};
+function price(p,rate){const M=p.ami*p.cat*p.size/12-p.ins/12-p.hoa;const den=(1-p.down/100)*k(rate,p.term)+p.tax/100/12;return M>0?M/den:0}
+const $$=n=>(n<0?"-":"")+"$"+Math.round(Math.abs(n)).toLocaleString("en-US");
+let out;
+function model(rate){const cost=P.land+P.time+P.con+P.fees,pr=price(P,rate),st=S.reduce((a,b)=>a+b,0);return{cost,pr,st,gap:cost-pr-P.subs-P.rent-st}}
+function draw(){
+const m=model(P.rate);out=m;const ok=m.gap<=0,t=TABLES[P.tab];
+$("gap").className="big"+(ok?" ok":"");$("gap").textContent=ok?"No gap":$$(m.gap)+" gap";
+$("gapsub").textContent=ok?"Sources cover the home by "+$$(-m.gap)+".":"fundraising needed for one home, after what the family can pay and what is lined up.";
+if(P.n>1&&!ok)$("gapsub").textContent+=" Project total for "+P.n+" homes: "+$$(m.gap*P.n)+".";
+const cr=[];for(let i=-6;i<=6;i++)cr.push(P.rate+i*.25);
+const cg=cr.map(r=>Math.max(0,model(r).gap)),lo=Math.min(...cg),hi=Math.max(...cg),sp=Math.max(1,hi-lo);
+const X=i=>40+i*(500/12),Y=g=>150-(g-lo)/sp*110,tx=(x,y,t,a,c)=>`<text x="${x}" y="${y}" text-anchor="${a}" font-size="12" fill="${c}">${t}</text>`;
+$("chart").innerHTML=`<polyline fill="none" stroke="#b13e2b" stroke-width="3" points="${cg.map((g,i)=>X(i)+","+Y(g)).join(" ")}"/><circle cx="${X(6)}" cy="${Y(cg[6])}" r="6" fill="#126b70"/>`+tx(X(6),Y(cg[6])-12,"today: "+$$(cg[6]),"middle","#126b70")+tx(40,176,cr[0].toFixed(2)+"%","start","#5a686d")+tx(540,176,cr[12].toFixed(2)+"%","end","#5a686d")+tx(40,16,"Gap per home: "+$$(hi)+" at the highest rate shown","start","#5a686d");
+const seg=[["Family price",m.pr,"#126b70"],["Public subsidies",P.subs,"#4a7fa6"],["Rent earned",P.rent,"#8aa07a"],["Sources stacked",m.st,"#b98b1f"],["Gap",Math.max(0,m.gap),"#b13e2b"]],tot=Math.max(1,m.pr+P.subs+P.rent+m.st+Math.max(0,m.gap));
+$("bar").innerHTML=seg.map(s=>`<div title="${s[0]}" style="width:${s[1]/tot*100}%;background:${s[2]}"></div>`).join("");
+$("bill").innerHTML="<tr><th>Cost to create</th><th></th><th>Paid by</th><th></th></tr>"+[[ "Land and building",P.land,"Family price (income-capped)",m.pr],["Time costs while waiting",P.time,"Public subsidies",P.subs],["Construction and repairs",P.con,"Rent earned while waiting",P.rent],["Fees, design, legal, sales",P.fees,"Sources stacked",m.st]].map(r=>`<tr><td>${r[0]}</td><td>${$$(r[1])}</td><td>${r[2]}</td><td>${$$(r[3])}</td></tr>`).join("")+`<tr class="gap"><td>Total ${$$(m.cost)}</td><td></td><td>Fundraising: the gap</td><td>${$$(Math.max(0,m.gap))}</td></tr>`;
+$("tbl").innerHTML=`<div class="warn w-${t[1]}"><b>${t[0]}.</b> ${t[2]}</div>`;
+const rs=[P.rate-1,P.rate-.5,P.rate,P.rate+.5,P.rate+1].map(r=>[r.toFixed(2)+"%",r]);rs.push(["7.40% (2026-10-08)",7.4]);
+$("rates").innerHTML="<tr><th>30-year rate</th><th>Family price</th><th>Gap</th><th>Change vs today</th></tr>"+rs.map(([n,r],i)=>{const x=model(r);return`<tr class="${i==2?"base":""}"><td>${n}</td><td>${$$(x.pr)}</td><td>${$$(Math.max(0,x.gap))}</td><td>${$$(x.gap-m.gap)}</td></tr>`}).join("");
+SR.forEach((s,i)=>{$("c"+i).style.color=S[i]>0?"var(--red)":""});
+const g=parseFloat($("gift").value)||0,gp=Math.max(0,m.gap);
+$("giftout").innerHTML=gp?`A gift of ${$$(g)} covers <b>${Math.min(100,g/gp*100).toFixed(0)}%</b> of the ${$$(gp)} fundraising line for this one home. It is the last dollars in the bill: the family’s price, subsidies and rent come first. About ${(gp/Math.max(1,g)).toFixed(1)} gifts this size close the gap for one home. All figures follow the assumptions below.`:"This home has no gap with the sources entered, so a gift is not needed on this line."}
+$("gift").oninput=draw;
+$("export").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify({inputs:P,sources_stacked:S.map((v,i)=>({name:SR[i][0],amount:v,status:SR[i][1]})),income_table:TABLES[P.tab][0],results:out},null,2)],{type:"application/json"}));a.download="scenario.json";a.click()};
+draw();
+let SM=null;
+(async()=>{try{if(window.claude&&claude.use)SM=await claude.use("sample")}catch(e){}
+$("aiNote").textContent=SM?"Claude reads the scenario on this page and writes the document. It is told to use only these numbers and to label every assumption.":"Available in the live demo link. When run locally, download the scenario and use memo.py.";
+if(!SM)$("aiMemo").disabled=$("aiDonor").disabled=true})();
+async function ask(kind){if(!SM)return;
+const sc=JSON.stringify({inputs:P,income_table:TABLES[P.tab][0],sources_entered:SR.map((x,i)=>({name:x[0],amount:S[i],status:x[1]})).filter(x=>x.amount>0),gift:parseFloat($("gift").value)||0,results:out});
+const base="Use ONLY the scenario JSON below. Never invent programs, award amounts, dates or deadlines. Label every assumed number as an assumption. If the numbers match the lab example deal, say it is a synthetic example. ";
+const task=kind=="memo"?"Write a one-page memo for a nonprofit finance lead and a city housing analyst: (1) the gap in total and per home, (2) what drives it (income table, rate, formula), (3) three ranked next steps to stack sources, each marked CONFIRMED or UNCONFIRMED, (4) every assumption used.":"Write a short, warm note for a donor (under 140 words) saying what this gift covers on the one-home bill, honestly, with assumptions labeled and no overclaiming.";
+$("aiOut").textContent="Thinking...";
+try{const r=await SM(base+task+"\n\nScenario:\n"+sc,{onText:t=>{$("aiOut").textContent=t.text},modelTier:"default",cache:false});$("aiOut").textContent=r.text}catch(e){$("aiOut").textContent="Claude could not answer ("+(e.code||"error")+"). Try again in a moment."}}
+$("aiMemo").onclick=()=>ask("memo");$("aiDonor").onclick=()=>ask("donor");
+</script>
+</body></html>
